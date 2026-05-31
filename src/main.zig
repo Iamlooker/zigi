@@ -34,6 +34,6 @@ pub fn main() anyerror!void {
 
         rl.drawCircle(ballX, ballY, radius, .dark_gray);
 
-        rl.drawRectangle(0, 0, screenWidth, screenHeight / 4, rl.Color.init(255, 179, 179, 255));
+        rl.drawRectangle(0, 0, screenWidth, screenHeight / 4, rl.Color.init(255, 0, 0, 200));
     }
 }
