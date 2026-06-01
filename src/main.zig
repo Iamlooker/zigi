@@ -32,9 +32,9 @@ pub fn main() anyerror!void {
         }
 
         rl.beginDrawing();
-        rl.clearBackground(.ray_white);
+        rl.clearBackground(.light_gray);
 
-        rl.drawCircleV(ballPos, radius, .dark_gray);
+        rl.drawCircleV(ballPos, radius, .dark_blue);
 
         rl.drawRectangleRec(eliminationRec, if (isLost) .dark_gray else .red);
 
