@@ -2,38 +2,47 @@ const std = @import("std");
 const rl = @import("raylib");
 
 pub fn main() anyerror!void {
-    const screenWidth = 800;
-    const screenHeight = 450;
-    const radius = 25;
+    const screenWidth = 1000;
+    const screenHeight = 800;
 
-    const minXConstraint = radius;
-    const maxXConstraint = screenWidth - radius;
-    // lock to bottom 3/4
-    const minYConstraint = (screenHeight / 4) + radius;
-    const maxYConstraint = screenHeight - radius;
-
-    rl.initWindow(screenWidth, screenHeight, "raylib-zig [core] example - basic window");
+    rl.initWindow(screenWidth, screenHeight, "zigi");
     defer rl.closeWindow();
 
-    var ballX: i32 = screenWidth / 2;
-    var ballY: i32 = 3 * screenHeight / 4;
+    const speed = 4.0;
+    const radius = 15;
+
+    var ballPos: rl.Vector2 = .init(screenWidth / 2, screenHeight / 2);
+    const eliminationRec: rl.Rectangle = .init(0, 4 * screenHeight / 5, screenWidth, screenHeight / 5);
 
     rl.setTargetFPS(240);
 
     while (!rl.windowShouldClose()) {
-        // Could have used: rl.checkCollisionCircleLine(center: Vector2, radius: f32, p1: Vector2, p2: Vector2)
-        if ((rl.isKeyDown(.up) or rl.isKeyDown(.w)) and ballY > minYConstraint) ballY -= 2.0;
-        if ((rl.isKeyDown(.down) or rl.isKeyDown(.s)) and ballY < maxYConstraint) ballY += 2.0;
-        if ((rl.isKeyDown(.left) or rl.isKeyDown(.a)) and ballX > minXConstraint) ballX -= 2.0;
-        if ((rl.isKeyDown(.right) or rl.isKeyDown(.d)) and ballX < maxXConstraint) ballX += 2.0;
+        var isLost = rl.checkCollisionCircleRec(ballPos, radius, eliminationRec);
+        if (isLost) {
+            if (rl.isKeyDown(.enter)) {
+                ballPos = .init(screenWidth / 2, screenHeight / 2);
+                isLost = false;
+            }
+        } else {
+            const finalSpeed = rl.getFrameTime() * 60 * speed;
+            if (rl.isKeyDown(.w) and ballPos.y > 0) ballPos.y -= finalSpeed;
+            if (rl.isKeyDown(.s) and ballPos.y < screenHeight) ballPos.y += finalSpeed;
+            if (rl.isKeyDown(.a) and ballPos.x > 0) ballPos.x -= finalSpeed;
+            if (rl.isKeyDown(.d) and ballPos.x < screenWidth) ballPos.x += finalSpeed;
+        }
 
         rl.beginDrawing();
-        defer rl.endDrawing();
-
         rl.clearBackground(.ray_white);
 
-        rl.drawCircle(ballX, ballY, radius, .dark_gray);
+        rl.drawCircleV(ballPos, radius, .dark_gray);
 
-        rl.drawRectangle(0, 0, screenWidth, screenHeight / 4, rl.Color.init(255, 0, 0, 200));
+        rl.drawRectangleRec(eliminationRec, if (isLost) .dark_gray else .red);
+
+        if (isLost) {
+            // Need to find a way to actually center this guy horizontally
+            rl.drawText("You lost! Press [Enter] to restart", (screenWidth / 5) + 20, screenHeight / 3, 32, .red);
+        }
+
+        rl.endDrawing();
     }
 }
