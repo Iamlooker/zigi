@@ -10,6 +10,9 @@ pub fn main() anyerror!void {
 
     const speed = 4.0;
     const radius = 15;
+    const endgameText = "You lost! Press [Enter] to restart";
+    const textWidth = rl.measureText(endgameText, 32);
+    const textX = @divTrunc(screenWidth - textWidth, 2);
 
     var ballPos: rl.Vector2 = .init(screenWidth / 2, screenHeight / 2);
     const eliminationRec: rl.Rectangle = .init(0, 4 * screenHeight / 5, screenWidth, screenHeight / 5);
@@ -40,7 +43,7 @@ pub fn main() anyerror!void {
 
         if (isLost) {
             // Need to find a way to actually center this guy horizontally
-            rl.drawText("You lost! Press [Enter] to restart", (screenWidth / 5) + 20, screenHeight / 3, 32, .red);
+            rl.drawText(endgameText, textX, screenHeight / 3, 32, .red);
         }
 
         rl.endDrawing();
