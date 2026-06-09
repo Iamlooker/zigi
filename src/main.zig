@@ -14,16 +14,20 @@ pub fn main() anyerror!void {
     const textWidth = rl.measureText(endgameText, 32);
     const textX = @divTrunc(screenWidth - textWidth, 2);
 
-    var ballPos: rl.Vector2 = .init(screenWidth / 2, screenHeight / 2);
     const eliminationRec: rl.Rectangle = .init(0, 4 * screenHeight / 5, screenWidth, screenHeight / 5);
+
+    const dBallX = screenWidth / 2;
+    const dBallY = screenHeight / 2;
+    var ballPos: rl.Vector2 = .init(dBallX, dBallY);
 
     rl.setTargetFPS(240);
 
     while (!rl.windowShouldClose()) {
         var isLost = rl.checkCollisionCircleRec(ballPos, radius, eliminationRec);
+        if (rl.isKeyDown(.q)) break;
         if (isLost) {
             if (rl.isKeyDown(.enter)) {
-                ballPos = .init(screenWidth / 2, screenHeight / 2);
+                ballPos = .init(dBallX, dBallY);
                 isLost = false;
             }
         } else {
@@ -42,7 +46,6 @@ pub fn main() anyerror!void {
         rl.drawRectangleRec(eliminationRec, if (isLost) .dark_gray else .red);
 
         if (isLost) {
-            // Need to find a way to actually center this guy horizontally
             rl.drawText(endgameText, textX, screenHeight / 3, 32, .red);
         }
 
