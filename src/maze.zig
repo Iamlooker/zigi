@@ -48,8 +48,8 @@ pub const Maze = struct {
         allocator: std.mem.Allocator,
         rand: std.Random,
     ) !Self {
-        const width = rand.intRangeLessThan(u16, 16, 32);
-        const height = rand.intRangeLessThan(u16, 16, 32);
+        const width = rand.intRangeLessThan(u16, 12, 32);
+        const height = rand.intRangeLessThan(u16, 8, 24);
         const start = rand.uintLessThan(u32, width * height);
         const end = rand.uintLessThan(u32, width * height);
         return init(allocator, rand, start, end, width, height);
@@ -93,6 +93,7 @@ pub const Maze = struct {
                     cellSize - wallSize,
                     .lime,
                 );
+
                 if (index == self.end) rl.drawRectangle(
                     px + wallSize,
                     py + wallSize,
@@ -106,7 +107,7 @@ pub const Maze = struct {
                     py + wallSize + 2,
                     cellSize - wallSize - 4,
                     cellSize - wallSize - 4,
-                    .dark_gray,
+                    .dark_blue,
                 );
             }
         }

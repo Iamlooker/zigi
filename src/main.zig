@@ -24,7 +24,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     rl.initWindow(screenWidth, screenHeight, "zigi");
     defer rl.closeWindow();
 
-    const wallSize = 3;
+    const wallSize = 2;
     const cellSize = 24;
     var marginX = (screenWidth - (maze.width * cellSize)) / 2;
     var marginY = (screenHeight - (maze.height * cellSize)) / 2;
