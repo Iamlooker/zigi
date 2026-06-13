@@ -1,0 +1,14 @@
+{
+    "enable_snippets": true,
+    "enable_argument_placeholders": true,
+    "max_detail_length": 1048576,
+    "completion_label_details": true,
+    "build_on_save": false,
+    "inlay_hints": {
+        "enable": true,
+        "show_variable_type_hints": true,
+        "show_parameter_hints": true,
+        "show_builtin_hints": true,
+        "exclude_single_candidate": false
+    }
+}

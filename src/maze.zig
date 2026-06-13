@@ -1,6 +1,7 @@
 const std = @import("std");
-const bench = @import("bench.zig");
 const rl = @import("raylib");
+
+const bench = @import("bench.zig");
 
 /// [start] is starting cell index
 /// [end] is winning cell index
@@ -61,7 +62,6 @@ pub const Maze = struct {
         posY: i32,
         cellSize: i32,
         wallSize: i32,
-        player: u32,
     ) void {
         for (0..self.height) |y| {
             for (0..self.width) |x| {
@@ -100,14 +100,6 @@ pub const Maze = struct {
                     cellSize - wallSize,
                     cellSize - wallSize,
                     .maroon,
-                );
-
-                if (index == player) rl.drawRectangle(
-                    px + wallSize + 2,
-                    py + wallSize + 2,
-                    cellSize - wallSize - 4,
-                    cellSize - wallSize - 4,
-                    .dark_blue,
                 );
             }
         }
