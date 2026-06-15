@@ -136,13 +136,15 @@ fn carve(
     try stack.append(allocator, start);
     visited[start] = true;
 
+    var neighbors: std.ArrayList(u4) = try .initCapacity(allocator, 4);
+    defer neighbors.deinit(allocator);
+
     while (stack.items.len > 0) {
         const current = stack.getLastOrNull() orelse break;
         const x = current % width;
         const y = current / width;
 
-        var neighbors: std.ArrayList(u4) = try .initCapacity(allocator, 4);
-        defer neighbors.deinit(allocator);
+        neighbors.clearRetainingCapacity();
 
         if (y > 0 and !visited[current - width]) {
             try neighbors.append(allocator, North);
