@@ -71,11 +71,13 @@ pub fn main(init: std.process.Init) anyerror!void {
     }
 
     const PLAYER_RUN_TILL = 0.2;
-    var playerIdleTimer: f32 = 0;
+    var spriteIdleTimer: f32 = 0;
 
     rl.setTargetFPS(240);
 
     while (!rl.windowShouldClose()) {
+        const isPlayerAtStart = playerPos == maze.start;
+        const isPlayerAtEnd = playerPos == maze.end;
         const cell = maze.cells[playerPos];
         const cellCanN = ((cell >> 3) & 1) != 0;
         const cellCanS = ((cell >> 2) & 1) != 0;
@@ -85,21 +87,21 @@ pub fn main(init: std.process.Init) anyerror!void {
         const playerX: f32 = @floatFromInt((playerPos % maze.width) * cellSize);
         const playerY: f32 = @floatFromInt((playerPos / maze.width) * cellSize);
 
-        if (playerIdleTimer > 0) playerIdleTimer -= rl.getFrameTime();
+        if (spriteIdleTimer > 0) spriteIdleTimer -= rl.getFrameTime();
 
         if (playerPos != maze.end) {
             if (rl.isKeyPressed(.w) and cellCanN) {
                 playerPos -= maze.width;
-                playerIdleTimer = PLAYER_RUN_TILL;
+                spriteIdleTimer = PLAYER_RUN_TILL;
             } else if (rl.isKeyPressed(.s) and cellCanS) {
                 playerPos += maze.width;
-                playerIdleTimer = PLAYER_RUN_TILL;
+                spriteIdleTimer = PLAYER_RUN_TILL;
             } else if (rl.isKeyPressed(.d) and cellCanE) {
                 playerPos += 1;
-                playerIdleTimer = PLAYER_RUN_TILL;
+                spriteIdleTimer = PLAYER_RUN_TILL;
             } else if (rl.isKeyPressed(.a) and cellCanW) {
                 playerPos -= 1;
-                playerIdleTimer = PLAYER_RUN_TILL;
+                spriteIdleTimer = PLAYER_RUN_TILL;
             }
         }
 
@@ -127,7 +129,7 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         maze.draw(marginX, marginY, cellSize, wallSize);
 
-        if (playerIdleTimer > 0) {
+        if (spriteIdleTimer > 0) {
             playerRunning.draw(
                 .init(marginX + playerX, marginY + playerY, 24, 24),
                 .zero(),
@@ -141,7 +143,7 @@ pub fn main(init: std.process.Init) anyerror!void {
             );
         }
 
-        if (playerPos == maze.end) {
+        if (isPlayerAtEnd) {
             rl.drawRectangle(0, 0, screenWidth, screenHeight, .init(255, 255, 255, 155));
             rl.drawText("[r]: Refresh [q]: Quit", 400, (screenHeight / 2) - 24, 24, .black);
         } else {
