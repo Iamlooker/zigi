@@ -69,11 +69,11 @@ pub fn run(io: std.Io, opts: Options, comptime func: anytype, args: anytype) !St
 
     i = 0;
     while (i < opts.iters) : (i += 1) {
-        const t0 = std.Io.Clock.now(.awake, io).nanoseconds;
+        const t0 = std.Io.Clock.now(.awake, io);
         try call(func, args);
-        const t1 = std.Io.Clock.now(.awake, io).nanoseconds;
+        const t1 = std.Io.Clock.now(.awake, io);
 
-        const ns: u64 = @intCast(t1 - t0);
+        const ns: u64 = @intCast(t0.durationTo(t1).nanoseconds);
         stats.min_ns = @min(stats.min_ns, ns);
         stats.max_ns = @max(stats.max_ns, ns);
         stats.total_ns += ns;
