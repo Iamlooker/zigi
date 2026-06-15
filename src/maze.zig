@@ -130,43 +130,48 @@ fn carve(
     defer allocator.free(visited);
     @memset(visited, false);
 
+    const neighbors = try allocator.alloc(u4, 4);
+    defer allocator.free(neighbors);
+    @memset(neighbors, 0);
+
     var stack: std.ArrayList(u32) = try .initCapacity(allocator, width);
     defer stack.deinit(allocator);
 
     try stack.append(allocator, start);
     visited[start] = true;
 
-    var neighbors: std.ArrayList(u4) = try .initCapacity(allocator, 4);
-    defer neighbors.deinit(allocator);
+    var n: usize = 0;
 
     while (stack.items.len > 0) {
         const current = stack.getLastOrNull() orelse break;
         const x = current % width;
         const y = current / width;
 
-        neighbors.clearRetainingCapacity();
-
+        n = 0;
         if (y > 0 and !visited[current - width]) {
-            try neighbors.append(allocator, North);
+            neighbors[n] = North;
+            n += 1;
         }
         if (y < height - 1 and !visited[current + width]) {
-            try neighbors.append(allocator, South);
+            neighbors[n] = South;
+            n += 1;
         }
         if (x > 0 and !visited[current - 1]) {
-            try neighbors.append(allocator, West);
+            neighbors[n] = West;
+            n += 1;
         }
         if (x < width - 1 and !visited[current + 1]) {
-            try neighbors.append(allocator, East);
+            neighbors[n] = East;
+            n += 1;
         }
 
-        if (neighbors.items.len == 0) {
+        if (n == 0) {
             _ = stack.pop();
             continue;
         }
 
         // random direction
-        const dirIndex = rand.uintLessThan(usize, neighbors.items.len);
-        const dir: u4 = neighbors.items[dirIndex];
+        const dir: u4 = neighbors[rand.uintLessThan(usize, n)];
         const oppositeDir = switch (dir) {
             North => South,
             South => North,
