@@ -143,7 +143,7 @@ fn carve(
     var n: usize = 0;
 
     while (stack.items.len > 0) {
-        const current = stack.getLastOrNull() orelse break;
+        const current = stack.getLast();
         const x = current % width;
         const y = current / width;
 
