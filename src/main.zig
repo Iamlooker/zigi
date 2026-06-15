@@ -73,11 +73,15 @@ pub fn main(init: std.process.Init) anyerror!void {
     const PLAYER_RUN_TILL = 0.2;
     var spriteIdleTimer: f32 = 0;
 
+    var playerStartTime: ?std.Io.Timestamp = null;
+    var finishDuration: ?std.Io.Duration = null;
+
     rl.setTargetFPS(240);
 
     while (!rl.windowShouldClose()) {
         const isPlayerAtStart = playerPos == maze.start;
         const isPlayerAtEnd = playerPos == maze.end;
+
         const cell = maze.cells[playerPos];
         const cellCanN = ((cell >> 3) & 1) != 0;
         const cellCanS = ((cell >> 2) & 1) != 0;
@@ -86,6 +90,18 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         const playerX: f32 = @floatFromInt((playerPos % maze.width) * cellSize);
         const playerY: f32 = @floatFromInt((playerPos / maze.width) * cellSize);
+
+        if (isPlayerAtStart) playerStartTime = null;
+
+        if (playerStartTime == null and isPlayerAtStart) {
+            playerStartTime = std.Io.Clock.now(.awake, init.io);
+        }
+
+        if (finishDuration == null and isPlayerAtEnd) {
+            const now = std.Io.Clock.now(.awake, init.io);
+            const start = playerStartTime orelse return;
+            finishDuration = start.durationTo(now);
+        }
 
         if (spriteIdleTimer > 0) spriteIdleTimer -= rl.getFrameTime();
 
@@ -145,6 +161,13 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         if (isPlayerAtEnd) {
             rl.drawRectangle(0, 0, screenWidth, screenHeight, .init(255, 255, 255, 155));
+
+            if (finishDuration) |d| {
+                var buf: [64]u8 = undefined;
+                const timeText = try std.fmt.bufPrintZ(&buf, "Finished in {f}", .{d});
+                rl.drawText(timeText, 400, (screenHeight / 2) - 60, 24, .black);
+            }
+
             rl.drawText("[r]: Refresh [q]: Quit", 400, (screenHeight / 2) - 24, 24, .black);
         } else {
             rl.drawText("[r]: Refresh [q]: Quit", 20, 20, 24, .black);
