@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const rl = @import("raylib");
 
 const a = @import("animation.zig");
@@ -13,8 +14,12 @@ pub fn main(init: std.process.Init) anyerror!void {
 
     const allocator = init.gpa;
 
-    const timestamp = std.Io.Clock.now(.awake, init.io);
-    const seed: u64 = @intCast(timestamp.toMilliseconds());
+    const seed: u64 = if (builtin.mode == .Debug) blk: {
+        break :blk 194;
+    } else blk: {
+        const timestamp = std.Io.Clock.now(.awake, init.io);
+        break :blk @intCast(timestamp.toMilliseconds());
+    };
 
     var prng: std.Random.DefaultPrng = .init(seed);
     const rand = prng.random();
