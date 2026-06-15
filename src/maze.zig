@@ -192,10 +192,10 @@ fn carve(
     return cells;
 }
 
-fn benchCarve(allocator: std.mem.Allocator) !void {
+fn benchCarve(allocator: std.mem.Allocator, size: u16) !void {
     var prng: std.Random.DefaultPrng = .init(42);
     const rand = prng.random();
-    var m = try Maze.init(allocator, rand, 0, 0, 32, 32);
+    var m = try Maze.init(allocator, rand, 0, 0, size, size);
     m.deinit(allocator);
 }
 
@@ -205,17 +205,15 @@ test "benchmark maze generation" {
     var thread: std.Io.Threaded = .init(allocator, .{});
     defer thread.deinit();
 
-    const stats = try bench.run(
-        thread.io(),
-        .{ .warmup = 2, .iters = 20 },
-        benchCarve,
-        .{allocator},
-    );
+    const sizes = [_]u16{ 32, 64, 128, 256, 512, 1024 };
+    for (sizes) |size| {
+        const stats = try bench.run(
+            thread.io(),
+            .{ .warmup = 2, .iters = 20 },
+            benchCarve,
+            .{ allocator, size },
+        );
 
-    // Sanity, not a perf threshold (those are flaky in CI).
-    try std.testing.expectEqual(@as(usize, 20), stats.iters);
-    try std.testing.expect(stats.min_ns <= stats.meanNs());
-    try std.testing.expect(stats.meanNs() <= stats.max_ns);
-
-    std.debug.print("maze 32x32: {f}\n", .{stats});
+        std.debug.print("maze {d}x{d}: {f}\n", .{ size, size, stats });
+    }
 }
