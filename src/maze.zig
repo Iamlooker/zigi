@@ -126,10 +126,6 @@ fn carve(
     const cells = try allocator.alloc(u4, count);
     @memset(cells, 0);
 
-    const visited = try allocator.alloc(bool, count);
-    defer allocator.free(visited);
-    @memset(visited, false);
-
     const neighbors = try allocator.alloc(u4, 4);
     defer allocator.free(neighbors);
     @memset(neighbors, 0);
@@ -138,7 +134,6 @@ fn carve(
     defer stack.deinit(allocator);
 
     var current: u32 = start;
-    visited[start] = true;
 
     var n: usize = 0;
 
@@ -147,19 +142,19 @@ fn carve(
         const y = current / width;
 
         n = 0;
-        if (y > 0 and !visited[current - width]) {
+        if (y > 0 and cells[current - width] == 0) {
             neighbors[n] = North;
             n += 1;
         }
-        if (y < height - 1 and !visited[current + width]) {
+        if (y < height - 1 and cells[current + width] == 0) {
             neighbors[n] = South;
             n += 1;
         }
-        if (x > 0 and !visited[current - 1]) {
+        if (x > 0 and cells[current - 1] == 0) {
             neighbors[n] = West;
             n += 1;
         }
-        if (x < width - 1 and !visited[current + 1]) {
+        if (x < width - 1 and cells[current + 1] == 0) {
             neighbors[n] = East;
             n += 1;
         }
@@ -194,7 +189,6 @@ fn carve(
         cells[current] |= dir;
         cells[next] |= oppositeDir;
 
-        visited[next] = true;
         current = next;
     }
 
