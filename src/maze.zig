@@ -56,8 +56,27 @@ pub const Maze = struct {
         return init(allocator, rand, start, end, width, height);
     }
 
+    pub fn bake(
+        self: *const Self,
+        cellSize: i32,
+        wallSize: i32,
+    ) !rl.RenderTexture2D {
+        const w: i32 = @as(i32, self.width) * cellSize + wallSize;
+        const h: i32 = @as(i32, self.height) * cellSize + wallSize;
+
+        const target: rl.RenderTexture2D = try .init(w, h);
+
+        target.begin();
+        defer target.end();
+
+        rl.clearBackground(.blank);
+        self.draw(0, 0, cellSize, wallSize);
+
+        return target;
+    }
+
     pub fn draw(
-        self: Self,
+        self: *const Self,
         posX: i32,
         posY: i32,
         cellSize: i32,
@@ -128,7 +147,7 @@ fn carve(
 
     var neighbors: [4]u4 = undefined;
 
-    var stack: std.ArrayList(u32) = try .initCapacity(allocator, width);
+    var stack: std.ArrayList(u32) = try .initCapacity(allocator, count / 4);
     defer stack.deinit(allocator);
 
     var current: u32 = start;

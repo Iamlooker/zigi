@@ -27,16 +27,20 @@ pub fn main(init: std.process.Init) anyerror!void {
     var maze = try Maze.random(allocator, rand);
     defer maze.deinit(allocator);
 
+    const wallSize = 1;
+    const cellSize = 24;
+
+    var marginX = (screenWidth - (maze.width * cellSize)) / 2;
+    var marginY = (screenHeight - (maze.height * cellSize)) / 2;
+
     rl.initWindow(screenWidth, screenHeight, "zigi");
     defer rl.closeWindow();
 
+    var mazeTexture = try maze.bake(cellSize, wallSize);
+    defer mazeTexture.unload();
+
     rl.initAudioDevice();
     defer rl.closeAudioDevice();
-
-    const wallSize = 1;
-    const cellSize = 24;
-    var marginX = (screenWidth - (maze.width * cellSize)) / 2;
-    var marginY = (screenHeight - (maze.height * cellSize)) / 2;
 
     var playerPos = maze.start;
 
@@ -64,7 +68,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     rl.setSoundVolume(moveSound, 0.1);
 
     var texture = try rl.loadTexture(selectedCharacter);
-    defer rl.unloadTexture(texture);
+    defer texture.unload();
 
     const SPRITE_FPS = 15;
 
@@ -152,10 +156,13 @@ pub fn main(init: std.process.Init) anyerror!void {
             rl.playSound(retrySound);
             rl.stopMusicStream(music);
             rl.playMusicStream(music);
+
             maze.deinit(allocator);
-            rl.unloadTexture(texture);
+            texture.unload();
+            mazeTexture.unload();
 
             maze = try Maze.random(allocator, rand);
+            mazeTexture = try maze.bake(cellSize, wallSize);
             marginX = (screenWidth - (maze.width * cellSize)) / 2;
             marginY = (screenHeight - (maze.height * cellSize)) / 2;
             playerPos = maze.start;
@@ -189,7 +196,13 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         rl.clearBackground(.light_gray);
 
-        maze.draw(marginX, marginY, cellSize, wallSize);
+        const tex = mazeTexture.texture;
+        rl.drawTextureRec(
+            tex,
+            .init(0, 0, @floatFromInt(tex.width), @floatFromInt(-tex.height)),
+            .init(@floatFromInt(marginX), @floatFromInt(marginY)),
+            .white,
+        );
 
         if (spriteIdleTimer > 0) {
             playerRunning.draw(
