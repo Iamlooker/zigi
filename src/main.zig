@@ -33,7 +33,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     rl.initAudioDevice();
     defer rl.closeAudioDevice();
 
-    const wallSize = 2;
+    const wallSize = 1;
     const cellSize = 24;
     var marginX = (screenWidth - (maze.width * cellSize)) / 2;
     var marginY = (screenHeight - (maze.height * cellSize)) / 2;
