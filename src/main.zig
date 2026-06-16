@@ -30,6 +30,9 @@ pub fn main(init: std.process.Init) anyerror!void {
     rl.initWindow(screenWidth, screenHeight, "zigi");
     defer rl.closeWindow();
 
+    rl.initAudioDevice();
+    defer rl.closeAudioDevice();
+
     const wallSize = 2;
     const cellSize = 24;
     var marginX = (screenWidth - (maze.width * cellSize)) / 2;
@@ -45,6 +48,20 @@ pub fn main(init: std.process.Init) anyerror!void {
     };
 
     var selectedCharacter = characters[rand.uintLessThan(usize, characters.len)];
+
+    var music = try rl.loadMusicStream("resources/sfx/music.mp3");
+    defer music.unload();
+    rl.setMusicVolume(music, 0.02);
+    music.looping = true;
+    rl.playMusicStream(music);
+
+    const retrySound = try rl.loadSound("resources/sfx/retry.wav");
+    defer retrySound.unload();
+    rl.setSoundVolume(retrySound, 0.3);
+
+    const moveSound = try rl.loadSound("resources/sfx/move.wav");
+    defer moveSound.unload();
+    rl.setSoundVolume(moveSound, 0.1);
 
     var texture = try rl.loadTexture(selectedCharacter);
     defer rl.unloadTexture(texture);
@@ -84,6 +101,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     rl.setTargetFPS(240);
 
     while (!rl.windowShouldClose()) {
+        rl.updateMusicStream(music);
         const cell = maze.cells[playerPos];
 
         const isPlayerAtStart = playerPos == maze.start;
@@ -93,21 +111,38 @@ pub fn main(init: std.process.Init) anyerror!void {
         if (!isPlayerAtEnd) {
             if (rl.isKeyPressed(.w)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-                if (((cell >> 3) & 1) != 0) playerPos -= maze.width;
+                if (((cell >> 3) & 1) != 0) {
+                    playerPos -= maze.width;
+                    if (!rl.isSoundPlaying(moveSound)) rl.stopSound(moveSound);
+                    rl.playSound(moveSound);
+                }
             } else if (rl.isKeyPressed(.s)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-                if (((cell >> 2) & 1) != 0) playerPos += maze.width;
+                if (((cell >> 2) & 1) != 0) {
+                    playerPos += maze.width;
+                    if (!rl.isSoundPlaying(moveSound)) rl.stopSound(moveSound);
+                    rl.playSound(moveSound);
+                }
             } else if (rl.isKeyPressed(.d)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-                if (((cell >> 1) & 1) != 0) playerPos += 1;
+                if (((cell >> 1) & 1) != 0) {
+                    playerPos += 1;
+                    if (!rl.isSoundPlaying(moveSound)) rl.stopSound(moveSound);
+                    rl.playSound(moveSound);
+                }
             } else if (rl.isKeyPressed(.a)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-                if ((cell & 1) != 0) playerPos -= 1;
+                if ((cell & 1) != 0) {
+                    playerPos -= 1;
+                    if (!rl.isSoundPlaying(moveSound)) rl.stopSound(moveSound);
+                    rl.playSound(moveSound);
+                }
             }
         }
 
         if (rl.isKeyPressed(.q)) break;
         if (rl.isKeyPressed(.r)) {
+            rl.playSound(retrySound);
             maze.deinit(allocator);
             rl.unloadTexture(texture);
 
