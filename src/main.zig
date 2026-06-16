@@ -84,45 +84,25 @@ pub fn main(init: std.process.Init) anyerror!void {
     rl.setTargetFPS(240);
 
     while (!rl.windowShouldClose()) {
+        const cell = maze.cells[playerPos];
+
         const isPlayerAtStart = playerPos == maze.start;
         const isPlayerAtEnd = playerPos == maze.end;
 
-        const cell = maze.cells[playerPos];
-        const cellCanN = ((cell >> 3) & 1) != 0;
-        const cellCanS = ((cell >> 2) & 1) != 0;
-        const cellCanE = ((cell >> 1) & 1) != 0;
-        const cellCanW = (cell & 1) != 0;
-
-        const playerX: f32 = @floatFromInt((playerPos % maze.width) * cellSize);
-        const playerY: f32 = @floatFromInt((playerPos / maze.width) * cellSize);
-
-        if (isPlayerAtStart) playerStartTime = null;
-
-        if (playerStartTime == null and isPlayerAtStart) {
-            playerStartTime = std.Io.Clock.now(.awake, init.io);
-        }
-
-        if (finishDuration == null and isPlayerAtEnd) {
-            const now = std.Io.Clock.now(.awake, init.io);
-            const start = playerStartTime orelse return;
-            finishDuration = start.durationTo(now);
-        }
-
-        if (spriteIdleTimer > 0) spriteIdleTimer -= rl.getFrameTime();
-
-        if (playerPos != maze.end) {
-            if (rl.isKeyPressed(.w) and cellCanN) {
-                playerPos -= maze.width;
+        // Movement before state calculation
+        if (!isPlayerAtEnd) {
+            if (rl.isKeyPressed(.w)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-            } else if (rl.isKeyPressed(.s) and cellCanS) {
-                playerPos += maze.width;
+                if (((cell >> 3) & 1) != 0) playerPos -= maze.width;
+            } else if (rl.isKeyPressed(.s)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-            } else if (rl.isKeyPressed(.d) and cellCanE) {
-                playerPos += 1;
+                if (((cell >> 2) & 1) != 0) playerPos += maze.width;
+            } else if (rl.isKeyPressed(.d)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-            } else if (rl.isKeyPressed(.a) and cellCanW) {
-                playerPos -= 1;
+                if (((cell >> 1) & 1) != 0) playerPos += 1;
+            } else if (rl.isKeyPressed(.a)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
+                if ((cell & 1) != 0) playerPos -= 1;
             }
         }
 
@@ -142,6 +122,23 @@ pub fn main(init: std.process.Init) anyerror!void {
             playerIdle.texture = texture;
             playerRunning.texture = texture;
         }
+
+        const playerX: f32 = @floatFromInt((playerPos % maze.width) * cellSize);
+        const playerY: f32 = @floatFromInt((playerPos / maze.width) * cellSize);
+
+        if (isPlayerAtStart) playerStartTime = null;
+
+        if (playerStartTime == null and isPlayerAtStart) {
+            playerStartTime = std.Io.Clock.now(.awake, init.io);
+        }
+
+        if (finishDuration == null and isPlayerAtEnd) {
+            const now = std.Io.Clock.now(.awake, init.io);
+            const start = playerStartTime orelse return;
+            finishDuration = start.durationTo(now);
+        }
+
+        if (spriteIdleTimer > 0) spriteIdleTimer -= rl.getFrameTime();
 
         rl.beginDrawing();
         defer rl.endDrawing();
