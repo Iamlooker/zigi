@@ -137,13 +137,12 @@ fn carve(
     var stack: std.ArrayList(u32) = try .initCapacity(allocator, width);
     defer stack.deinit(allocator);
 
-    try stack.append(allocator, start);
+    var current: u32 = start;
     visited[start] = true;
 
     var n: usize = 0;
 
-    while (stack.items.len > 0) {
-        const current = stack.getLast();
+    while (true) {
         const x = current % width;
         const y = current / width;
 
@@ -166,9 +165,14 @@ fn carve(
         }
 
         if (n == 0) {
-            _ = stack.pop();
+            // Dead end: jump back to the last decision point.
+            if (stack.items.len == 0) break;
+            current = stack.pop().?;
             continue;
         }
+
+        // Only push to stack if neighbors > 0
+        if (n > 1) try stack.append(allocator, current);
 
         // random direction
         const dir: u4 = neighbors[rand.uintLessThan(usize, n)];
@@ -191,7 +195,7 @@ fn carve(
         cells[next] |= oppositeDir;
 
         visited[next] = true;
-        try stack.append(allocator, next);
+        current = next;
     }
 
     return cells;
