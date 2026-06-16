@@ -41,8 +41,8 @@ pub const Stats = struct {
     }
 
     pub fn format(self: Stats, w: *std.Io.Writer) !void {
-        try w.print("{d} iters | min {d:.4}ms  mean {d:.4}ms  max {d:.4}ms", .{
-            self.iters, self.minMs(), self.meanMs(), self.maxMs(),
+        try w.print("n={d}, μ={d:.3}ms, Δ={d:.2}ms", .{
+            self.iters, self.meanMs(), self.maxMs() - self.minMs(),
         });
     }
 };

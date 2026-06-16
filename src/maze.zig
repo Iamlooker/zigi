@@ -217,6 +217,6 @@ test "benchmark maze generation" {
             .{ allocator, size },
         );
 
-        std.debug.print("maze {d}x{d}: {f}\n", .{ size, size, stats });
+        std.debug.print("maze={d}², {f}\n", .{ size, stats });
     }
 }
