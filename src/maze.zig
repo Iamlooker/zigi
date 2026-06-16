@@ -210,7 +210,7 @@ test "benchmark maze generation" {
     var thread: std.Io.Threaded = .init(allocator, .{});
     defer thread.deinit();
 
-    const sizes = [_]u16{ 32, 64, 128, 256, 512, 1024 };
+    const sizes = [_]u16{ 32, 64, 128, 256, 512, 1024, 2048, 4096 };
     for (sizes) |size| {
         const stats = try bench.run(
             thread.io(),
