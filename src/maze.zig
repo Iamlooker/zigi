@@ -126,9 +126,7 @@ fn carve(
     const cells = try allocator.alloc(u4, count);
     @memset(cells, 0);
 
-    const neighbors = try allocator.alloc(u4, 4);
-    defer allocator.free(neighbors);
-    @memset(neighbors, 0);
+    var neighbors: [4]u4 = undefined;
 
     var stack: std.ArrayList(u32) = try .initCapacity(allocator, width);
     defer stack.deinit(allocator);
