@@ -51,7 +51,7 @@ pub fn main(init: std.process.Init) anyerror!void {
 
     var music = try rl.loadMusicStream("resources/sfx/music.mp3");
     defer music.unload();
-    rl.setMusicVolume(music, 0.02);
+    rl.setMusicVolume(music, 0.1);
     music.looping = true;
     rl.playMusicStream(music);
 
@@ -141,8 +141,17 @@ pub fn main(init: std.process.Init) anyerror!void {
         }
 
         if (rl.isKeyPressed(.q)) break;
+        if (rl.isKeyPressed(.m)) {
+            if (rl.isMusicStreamPlaying(music)) {
+                rl.stopMusicStream(music);
+            } else {
+                rl.playMusicStream(music);
+            }
+        }
         if (rl.isKeyPressed(.r)) {
             rl.playSound(retrySound);
+            rl.stopMusicStream(music);
+            rl.playMusicStream(music);
             maze.deinit(allocator);
             rl.unloadTexture(texture);
 
