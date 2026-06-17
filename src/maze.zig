@@ -1,8 +1,6 @@
 const std = @import("std");
 const rl = @import("raylib");
 
-const bench = @import("bench.zig");
-
 /// [start] is starting cell index
 /// [end] is winning cell index
 /// [width] is in number of cells
@@ -210,30 +208,4 @@ fn carve(
     }
 
     return cells;
-}
-
-fn benchCarve(allocator: std.mem.Allocator, size: u16) !void {
-    var prng: std.Random.DefaultPrng = .init(42);
-    const rand = prng.random();
-    var m = try Maze.init(allocator, rand, 0, 0, size, size);
-    m.deinit(allocator);
-}
-
-test "benchmark maze generation" {
-    const allocator = std.testing.allocator;
-
-    var thread: std.Io.Threaded = .init(allocator, .{});
-    defer thread.deinit();
-
-    const sizes = [_]u16{ 32, 64, 128, 256, 512, 1024, 2048, 4096 };
-    for (sizes) |size| {
-        const stats = try bench.run(
-            thread.io(),
-            .{ .warmup = 2, .iters = 20 },
-            benchCarve,
-            .{ allocator, size },
-        );
-
-        std.debug.print("maze={d}², {f}\n", .{ size, stats });
-    }
 }
