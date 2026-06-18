@@ -18,9 +18,6 @@ const CELL_SIZE = config.CELL_SIZE;
 const SPRITE_SIZE = config.SPRITE_SIZE;
 
 pub fn main(init: std.process.Init) anyerror!void {
-    const screenWidth = 1000;
-    const screenHeight = 1000;
-
     const allocator = init.gpa;
 
     const seed: u64 = if (builtin.mode == .Debug) blk: {
@@ -36,10 +33,14 @@ pub fn main(init: std.process.Init) anyerror!void {
     var maze = try Maze.random(allocator, rand);
     defer maze.deinit(allocator);
 
-    var marginX = (screenWidth - (maze.width * CELL_SIZE)) / 2;
-    var marginY = (screenHeight - (maze.height * CELL_SIZE)) / 2;
+    var sw: i32 = 1000;
+    var sh: i32 = 1000;
 
-    rl.initWindow(screenWidth, screenHeight, "zigi");
+    var marginX = mX(sw, maze);
+    var marginY = mY(sh, maze);
+
+    rl.setConfigFlags(.{ .window_resizable = true });
+    rl.initWindow(sw, sh, "zigi");
     defer rl.closeWindow();
 
     var mazeTexture = try maze.bake();
@@ -85,6 +86,16 @@ pub fn main(init: std.process.Init) anyerror!void {
 
     while (!rl.windowShouldClose()) {
         rl.updateMusicStream(music);
+
+        const nsw = rl.getScreenWidth();
+        const nsh = rl.getScreenHeight();
+        if (sw != nsw or sh != nsh) {
+            sw = nsw;
+            sh = nsh;
+
+            marginX = mX(sw, maze);
+            marginY = mY(sh, maze);
+        }
 
         const isPlayerAtStart = player.position == maze.start;
         const isPlayerAtEnd = player.position == maze.end;
@@ -146,8 +157,8 @@ pub fn main(init: std.process.Init) anyerror!void {
             mazeTexture.unload();
             mazeTexture = newMazeTexture;
 
-            marginX = (screenWidth - (maze.width * CELL_SIZE)) / 2;
-            marginY = (screenHeight - (maze.height * CELL_SIZE)) / 2;
+            marginX = mX(sw, maze);
+            marginY = mY(sh, maze);
 
             const newPlayer = try Player.init(maze.start, Character.random(rand));
             player.deinit();
@@ -175,7 +186,7 @@ pub fn main(init: std.process.Init) anyerror!void {
         rl.drawTextureRec(
             tex,
             .init(0, 0, @floatFromInt(tex.width), @floatFromInt(-tex.height)),
-            .init(@floatFromInt(marginX), @floatFromInt(marginY)),
+            .init(marginX, marginY),
             .white,
         );
 
@@ -194,15 +205,15 @@ pub fn main(init: std.process.Init) anyerror!void {
         }
 
         if (isPlayerAtEnd) {
-            rl.drawRectangle(0, 0, screenWidth, screenHeight, .init(255, 255, 255, 155));
+            rl.drawRectangle(0, 0, sw, sh, .init(255, 255, 255, 155));
 
             if (timer.duration) |d| {
                 var buf: [64]u8 = undefined;
                 const timeText = try std.fmt.bufPrintZ(&buf, "Finished in {f}", .{d});
-                rl.drawText(timeText, 400, (screenHeight / 2) - 60, 24, .black);
+                rl.drawText(timeText, 400, @divTrunc(sh, 2) - 60, 24, .black);
             }
 
-            rl.drawText("[r]: Refresh [q]: Quit", 400, (screenHeight / 2) - 24, 24, .black);
+            rl.drawText("[r]: Refresh [q]: Quit", 400, @divTrunc(sh, 2) - 24, 24, .black);
         } else {
             rl.drawText("[r]: Refresh [q]: Quit", 20, 20, 24, .black);
         }
@@ -230,4 +241,14 @@ const Timer = struct {
 inline fn playNew(sound: rl.Sound) void {
     if (rl.isSoundPlaying(sound)) rl.stopSound(sound);
     rl.playSound(sound);
+}
+
+inline fn mY(screen: i32, maze: Maze) f32 {
+    const mh: i32 = @intCast(maze.width * CELL_SIZE);
+    return @floatFromInt(@divTrunc(screen - mh, 2));
+}
+
+inline fn mX(screen: i32, maze: Maze) f32 {
+    const mw: i32 = @intCast(maze.height * CELL_SIZE);
+    return @floatFromInt(@divTrunc(screen - mw, 2));
 }
