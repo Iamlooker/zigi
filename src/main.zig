@@ -16,6 +16,7 @@ const Character = p.Character;
 const config = @import("config.zig");
 const CELL_SIZE = config.CELL_SIZE;
 const SPRITE_SIZE = config.SPRITE_SIZE;
+const PADDING = config.PADDING;
 
 pub fn main(init: std.process.Init) anyerror!void {
     const allocator = init.gpa;
@@ -36,8 +37,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     var sw: i32 = 1000;
     var sh: i32 = 1000;
 
-    var marginX = mX(sw, maze);
-    var marginY = mY(sh, maze);
+    var layout = fit(sw, sh, maze);
 
     rl.setConfigFlags(.{ .window_resizable = true });
     rl.initWindow(sw, sh, "zigi");
@@ -93,8 +93,7 @@ pub fn main(init: std.process.Init) anyerror!void {
             sw = nsw;
             sh = nsh;
 
-            marginX = mX(sw, maze);
-            marginY = mY(sh, maze);
+            layout = fit(sw, sh, maze);
         }
 
         const isPlayerAtStart = player.position == maze.start;
@@ -157,8 +156,7 @@ pub fn main(init: std.process.Init) anyerror!void {
             mazeTexture.unload();
             mazeTexture = newMazeTexture;
 
-            marginX = mX(sw, maze);
-            marginY = mY(sh, maze);
+            layout = fit(sw, sh, maze);
 
             const newPlayer = try Player.init(maze.start, Character.random(rand));
             player.deinit();
@@ -183,25 +181,24 @@ pub fn main(init: std.process.Init) anyerror!void {
         rl.clearBackground(.light_gray);
 
         const tex = mazeTexture.texture;
-        rl.drawTextureRec(
+        const texW: f32 = @floatFromInt(tex.width);
+        const texH: f32 = @floatFromInt(tex.height);
+        rl.drawTexturePro(
             tex,
-            .init(0, 0, @floatFromInt(tex.width), @floatFromInt(-tex.height)),
-            .init(marginX, marginY),
+            .init(0, 0, texW, -texH),
+            .init(layout.x, layout.y, texW * layout.scale, texH * layout.scale),
+            .zero(),
+            0,
             .white,
         );
 
+        const px = layout.x + playerX * layout.scale;
+        const py = layout.y + playerY * layout.scale;
+        const ps = SPRITE_SIZE * layout.scale;
         if (spriteIdleTimer > 0) {
-            playerRunning.draw(
-                .init(marginX + playerX, marginY + playerY, SPRITE_SIZE, SPRITE_SIZE),
-                .zero(),
-                .white,
-            );
+            playerRunning.draw(.init(px, py, ps, ps), .zero(), .white);
         } else {
-            playerIdle.draw(
-                .init(marginX + playerX, marginY + playerY, SPRITE_SIZE, SPRITE_SIZE),
-                .zero(),
-                .white,
-            );
+            playerIdle.draw(.init(px, py, ps, ps), .zero(), .white);
         }
 
         if (isPlayerAtEnd) {
@@ -243,12 +240,19 @@ inline fn playNew(sound: rl.Sound) void {
     rl.playSound(sound);
 }
 
-inline fn mY(screen: i32, maze: Maze) f32 {
-    const mh: i32 = @intCast(maze.width * CELL_SIZE);
-    return @floatFromInt(@divTrunc(screen - mh, 2));
-}
+const Layout = struct { scale: f32, x: f32, y: f32 };
 
-inline fn mX(screen: i32, maze: Maze) f32 {
-    const mw: i32 = @intCast(maze.height * CELL_SIZE);
-    return @floatFromInt(@divTrunc(screen - mw, 2));
+inline fn fit(sw: i32, sh: i32, maze: Maze) Layout {
+    const mw: f32 = @floatFromInt(maze.width * CELL_SIZE);
+    const mh: f32 = @floatFromInt(maze.height * CELL_SIZE);
+    const fsw: f32 = @floatFromInt(sw);
+    const fsh: f32 = @floatFromInt(sh);
+    const availW = fsw - 2 * PADDING;
+    const availH = fsh - 2 * PADDING;
+    const scale = @min(availW / mw, availH / mh);
+    return .{
+        .scale = scale,
+        .x = (fsw - mw * scale) / 2,
+        .y = (fsh - mh * scale) / 2,
+    };
 }
