@@ -1,6 +1,10 @@
 const std = @import("std");
 const rl = @import("raylib");
 
+const config = @import("config.zig");
+const CELL_SIZE = config.CELL_SIZE;
+const WALL_SIZE = config.WALL_SIZE;
+
 /// [start] is starting cell index
 /// [end] is winning cell index
 /// [width] is in number of cells
@@ -32,7 +36,7 @@ pub const Maze = struct {
         };
     }
 
-    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
         allocator.free(self.cells);
     }
 
@@ -54,13 +58,9 @@ pub const Maze = struct {
         return init(allocator, rand, start, end, width, height);
     }
 
-    pub fn bake(
-        self: *const Self,
-        cellSize: i32,
-        wallSize: i32,
-    ) !rl.RenderTexture2D {
-        const w: i32 = @as(i32, self.width) * cellSize + wallSize;
-        const h: i32 = @as(i32, self.height) * cellSize + wallSize;
+    pub fn bake(self: Self) !rl.RenderTexture2D {
+        const w: i32 = @as(i32, self.width) * CELL_SIZE + WALL_SIZE;
+        const h: i32 = @as(i32, self.height) * CELL_SIZE + WALL_SIZE;
 
         const target: rl.RenderTexture2D = try .init(w, h);
 
@@ -68,17 +68,15 @@ pub const Maze = struct {
         defer target.end();
 
         rl.clearBackground(.blank);
-        self.draw(0, 0, cellSize, wallSize);
+        self.draw(0, 0);
 
         return target;
     }
 
     pub fn draw(
-        self: *const Self,
+        self: Self,
         posX: i32,
         posY: i32,
-        cellSize: i32,
-        wallSize: i32,
     ) void {
         for (0..self.height) |y| {
             for (0..self.width) |x| {
@@ -87,35 +85,39 @@ pub const Maze = struct {
                 const cellX: i32 = @intCast(x);
                 const cellY: i32 = @intCast(y);
 
-                const px: i32 = posX + (cellX * cellSize);
-                const py: i32 = posY + (cellY * cellSize);
+                const px: i32 = posX + (cellX * CELL_SIZE);
+                const py: i32 = posY + (cellY * CELL_SIZE);
 
                 const cell = self.cells[index];
-                const N = ((cell >> 3) & 1) == 0;
-                const S = ((cell >> 2) & 1) == 0;
-                const E = ((cell >> 1) & 1) == 0;
-                const W = (cell & 1) == 0;
 
-                // `+ wallSize` so the right corner is closed
-                if (N) rl.drawRectangle(px, py, cellSize + wallSize, wallSize, .black);
-                if (S) rl.drawRectangle(px, py + cellSize, cellSize + wallSize, wallSize, .black);
+                // `+ WALL_SIZE` so the right corner is closed
+                if (Direction.north.isWall(cell)) {
+                    rl.drawRectangle(px, py, CELL_SIZE + WALL_SIZE, WALL_SIZE, .black);
+                }
+                if (Direction.south.isWall(cell)) {
+                    rl.drawRectangle(px, py + CELL_SIZE, CELL_SIZE + WALL_SIZE, WALL_SIZE, .black);
+                }
 
-                if (E) rl.drawRectangle(px + cellSize, py, wallSize, cellSize, .black);
-                if (W) rl.drawRectangle(px, py, wallSize, cellSize, .black);
+                if (Direction.east.isWall(cell)) {
+                    rl.drawRectangle(px + CELL_SIZE, py, WALL_SIZE, CELL_SIZE, .black);
+                }
+                if (Direction.west.isWall(cell)) {
+                    rl.drawRectangle(px, py, WALL_SIZE, CELL_SIZE, .black);
+                }
 
                 if (index == self.start) rl.drawRectangle(
-                    px + wallSize,
-                    py + wallSize,
-                    cellSize - wallSize,
-                    cellSize - wallSize,
+                    px + WALL_SIZE,
+                    py + WALL_SIZE,
+                    CELL_SIZE - WALL_SIZE,
+                    CELL_SIZE - WALL_SIZE,
                     .lime,
                 );
 
                 if (index == self.end) rl.drawRectangle(
-                    px + wallSize,
-                    py + wallSize,
-                    cellSize - wallSize,
-                    cellSize - wallSize,
+                    px + WALL_SIZE,
+                    py + WALL_SIZE,
+                    CELL_SIZE - WALL_SIZE,
+                    CELL_SIZE - WALL_SIZE,
                     .maroon,
                 );
             }
@@ -123,11 +125,30 @@ pub const Maze = struct {
     }
 };
 
-// I could rather use only South and East borders so the drawing is easier but calculations are little tougher (not significant though)
-const North: u4 = 0b1000;
-const South: u4 = 0b0100;
-const East: u4 = 0b0010;
-const West: u4 = 0b0001;
+pub const Direction = enum(u4) {
+    north = 0b1000,
+    south = 0b0100,
+    east = 0b0010,
+    west = 0b0001,
+
+    pub fn opposite(self: Direction) Direction {
+        return switch (self) {
+            .north => .south,
+            .south => .north,
+            .east => .west,
+            .west => .east,
+        };
+    }
+
+    pub fn isWall(self: Direction, cell: u4) bool {
+        const bit = @intFromEnum(self);
+        return (cell & bit) != bit;
+    }
+
+    pub fn isPath(self: Direction, cell: u4) bool {
+        return !self.isWall(cell);
+    }
+};
 
 /// Cells generator based on a stack based approach
 ///
@@ -143,7 +164,7 @@ fn carve(
     const cells = try allocator.alloc(u4, count);
     @memset(cells, 0);
 
-    var neighbors: [4]u4 = undefined;
+    var neighbors: [4]Direction = undefined;
 
     var stack: std.ArrayList(u32) = try .initCapacity(allocator, count / 4);
     defer stack.deinit(allocator);
@@ -158,19 +179,19 @@ fn carve(
 
         n = 0;
         if (y > 0 and cells[current - width] == 0) {
-            neighbors[n] = North;
+            neighbors[n] = .north;
             n += 1;
         }
         if (y < height - 1 and cells[current + width] == 0) {
-            neighbors[n] = South;
+            neighbors[n] = .south;
             n += 1;
         }
         if (x > 0 and cells[current - 1] == 0) {
-            neighbors[n] = West;
+            neighbors[n] = .west;
             n += 1;
         }
         if (x < width - 1 and cells[current + 1] == 0) {
-            neighbors[n] = East;
+            neighbors[n] = .east;
             n += 1;
         }
 
@@ -185,24 +206,17 @@ fn carve(
         if (n > 1) try stack.append(allocator, current);
 
         // random direction
-        const dir: u4 = neighbors[rand.uintLessThan(usize, n)];
-        const oppositeDir = switch (dir) {
-            North => South,
-            South => North,
-            East => West,
-            West => East,
-            else => unreachable,
-        };
+        const dir = neighbors[rand.uintLessThan(usize, n)];
+        const oppositeDir = dir.opposite();
 
         const next = switch (dir) {
-            North => current - width,
-            South => current + width,
-            East => current + 1,
-            West => current - 1,
-            else => unreachable,
+            .north => current - width,
+            .south => current + width,
+            .east => current + 1,
+            .west => current - 1,
         };
-        cells[current] |= dir;
-        cells[next] |= oppositeDir;
+        cells[current] |= @intFromEnum(dir);
+        cells[next] |= @intFromEnum(oppositeDir);
 
         current = next;
     }

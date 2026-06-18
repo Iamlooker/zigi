@@ -2,11 +2,20 @@ const std = @import("std");
 const builtin = @import("builtin");
 const rl = @import("raylib");
 
-const a = @import("animation.zig");
+const a = @import("sprite.zig");
 const Sprite = a.Sprite;
 
 const m = @import("maze.zig");
 const Maze = m.Maze;
+const Direction = m.Direction;
+
+const p = @import("player.zig");
+const Player = p.Player;
+const Character = p.Character;
+
+const config = @import("config.zig");
+const CELL_SIZE = config.CELL_SIZE;
+const SPRITE_SIZE = config.SPRITE_SIZE;
 
 pub fn main(init: std.process.Init) anyerror!void {
     const screenWidth = 1000;
@@ -27,31 +36,17 @@ pub fn main(init: std.process.Init) anyerror!void {
     var maze = try Maze.random(allocator, rand);
     defer maze.deinit(allocator);
 
-    const wallSize = 1;
-    const cellSize = 24;
-
-    var marginX = (screenWidth - (maze.width * cellSize)) / 2;
-    var marginY = (screenHeight - (maze.height * cellSize)) / 2;
+    var marginX = (screenWidth - (maze.width * CELL_SIZE)) / 2;
+    var marginY = (screenHeight - (maze.height * CELL_SIZE)) / 2;
 
     rl.initWindow(screenWidth, screenHeight, "zigi");
     defer rl.closeWindow();
 
-    var mazeTexture = try maze.bake(cellSize, wallSize);
+    var mazeTexture = try maze.bake();
     defer mazeTexture.unload();
 
     rl.initAudioDevice();
     defer rl.closeAudioDevice();
-
-    var playerPos = maze.start;
-
-    const characters = [_][:0]const u8{
-        "resources/sprites/doux.png",
-        "resources/sprites/mort.png",
-        "resources/sprites/tard.png",
-        "resources/sprites/vita.png",
-    };
-
-    var selectedCharacter = characters[rand.uintLessThan(usize, characters.len)];
 
     var music = try rl.loadMusicStream("resources/sfx/music.mp3");
     defer music.unload();
@@ -67,79 +62,65 @@ pub fn main(init: std.process.Init) anyerror!void {
     defer moveSound.unload();
     rl.setSoundVolume(moveSound, 0.1);
 
-    var texture = try rl.loadTexture(selectedCharacter);
-    defer texture.unload();
+    var player: Player = try .init(maze.start, Character.random(rand));
+    defer player.deinit();
 
     const SPRITE_FPS = 15;
 
     const IDLE_FRAMES = 4;
-    var playerIdle: Sprite = .{
-        .fps = SPRITE_FPS,
-        .texture = texture,
-        .frames = try allocator.alloc(rl.Rectangle, IDLE_FRAMES),
-    };
-    defer allocator.free(playerIdle.frames);
-    for (0..IDLE_FRAMES) |i| {
-        const iF: f32 = @floatFromInt(i);
-        playerIdle.frames[i] = .init(iF * 24, 0, 24, 24);
-    }
+
+    var playerIdle: Sprite = try .init(allocator, player.texture, SPRITE_FPS, 0, IDLE_FRAMES, SPRITE_SIZE);
+    defer playerIdle.deinit(allocator);
 
     const RUNNING_FRAMES = 6;
-    var playerRunning: Sprite = .{
-        .fps = SPRITE_FPS,
-        .texture = texture,
-        .frames = try allocator.alloc(rl.Rectangle, RUNNING_FRAMES),
-    };
-    defer allocator.free(playerRunning.frames);
-    for (0..RUNNING_FRAMES) |i| {
-        const iF: f32 = @floatFromInt(i);
-        playerRunning.frames[i] = .init((iF * 24) + 96, 0, 24, 24);
-    }
+    var playerRunning: Sprite = try .init(allocator, player.texture, SPRITE_FPS, IDLE_FRAMES, RUNNING_FRAMES, SPRITE_SIZE);
+    defer playerRunning.deinit(allocator);
 
     const PLAYER_RUN_TILL = 0.2;
     var spriteIdleTimer: f32 = 0;
 
-    var playerStartTime: ?std.Io.Timestamp = null;
-    var finishDuration: ?std.Io.Duration = null;
+    var timer: Timer = .{};
 
     rl.setTargetFPS(240);
 
     while (!rl.windowShouldClose()) {
         rl.updateMusicStream(music);
-        const cell = maze.cells[playerPos];
 
-        const isPlayerAtStart = playerPos == maze.start;
-        const isPlayerAtEnd = playerPos == maze.end;
+        const isPlayerAtStart = player.position == maze.start;
+        const isPlayerAtEnd = player.position == maze.end;
 
         // Movement before state calculation
         if (!isPlayerAtEnd) {
             if (rl.isKeyPressed(.w)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-                if (((cell >> 3) & 1) != 0) {
-                    playerPos -= maze.width;
-                    if (!rl.isSoundPlaying(moveSound)) rl.stopSound(moveSound);
-                    rl.playSound(moveSound);
+                const position = maze.cells[player.position];
+                if (Direction.north.isPath(position)) {
+                    player.sub(maze.width);
+                    playNew(moveSound);
                 }
-            } else if (rl.isKeyPressed(.s)) {
+            }
+            if (rl.isKeyPressed(.s)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-                if (((cell >> 2) & 1) != 0) {
-                    playerPos += maze.width;
-                    if (!rl.isSoundPlaying(moveSound)) rl.stopSound(moveSound);
-                    rl.playSound(moveSound);
+                const position = maze.cells[player.position];
+                if (Direction.south.isPath(position)) {
+                    player.add(maze.width);
+                    playNew(moveSound);
                 }
-            } else if (rl.isKeyPressed(.d)) {
+            }
+            if (rl.isKeyPressed(.d)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-                if (((cell >> 1) & 1) != 0) {
-                    playerPos += 1;
-                    if (!rl.isSoundPlaying(moveSound)) rl.stopSound(moveSound);
-                    rl.playSound(moveSound);
+                const position = maze.cells[player.position];
+                if (Direction.east.isPath(position)) {
+                    player.add(1);
+                    playNew(moveSound);
                 }
-            } else if (rl.isKeyPressed(.a)) {
+            }
+            if (rl.isKeyPressed(.a)) {
                 spriteIdleTimer = PLAYER_RUN_TILL;
-                if ((cell & 1) != 0) {
-                    playerPos -= 1;
-                    if (!rl.isSoundPlaying(moveSound)) rl.stopSound(moveSound);
-                    rl.playSound(moveSound);
+                const position = maze.cells[player.position];
+                if (Direction.west.isPath(position)) {
+                    player.sub(1);
+                    playNew(moveSound);
                 }
             }
         }
@@ -153,41 +134,35 @@ pub fn main(init: std.process.Init) anyerror!void {
             }
         }
         if (rl.isKeyPressed(.r)) {
-            rl.playSound(retrySound);
+            playNew(retrySound);
             rl.stopMusicStream(music);
             rl.playMusicStream(music);
 
+            const newMaze = try Maze.random(allocator, rand);
             maze.deinit(allocator);
-            texture.unload();
+            maze = newMaze;
+
+            const newMazeTexture = try maze.bake();
             mazeTexture.unload();
+            mazeTexture = newMazeTexture;
 
-            maze = try Maze.random(allocator, rand);
-            mazeTexture = try maze.bake(cellSize, wallSize);
-            marginX = (screenWidth - (maze.width * cellSize)) / 2;
-            marginY = (screenHeight - (maze.height * cellSize)) / 2;
-            playerPos = maze.start;
+            marginX = (screenWidth - (maze.width * CELL_SIZE)) / 2;
+            marginY = (screenHeight - (maze.height * CELL_SIZE)) / 2;
 
-            selectedCharacter = characters[rand.uintLessThan(usize, characters.len)];
-            texture = try rl.loadTexture(selectedCharacter);
+            const newPlayer = try Player.init(maze.start, Character.random(rand));
+            player.deinit();
+            player = newPlayer;
 
-            playerIdle.texture = texture;
-            playerRunning.texture = texture;
+            playerIdle.texture = player.texture;
+            playerRunning.texture = player.texture;
+            timer.reset();
         }
 
-        const playerX: f32 = @floatFromInt((playerPos % maze.width) * cellSize);
-        const playerY: f32 = @floatFromInt((playerPos / maze.width) * cellSize);
+        const playerX: f32 = @floatFromInt(player.x(maze.width) * CELL_SIZE);
+        const playerY: f32 = @floatFromInt(player.y(maze.width) * CELL_SIZE);
 
-        if (isPlayerAtStart) playerStartTime = null;
-
-        if (playerStartTime == null and isPlayerAtStart) {
-            playerStartTime = std.Io.Clock.now(.awake, init.io);
-        }
-
-        if (finishDuration == null and isPlayerAtEnd) {
-            const now = std.Io.Clock.now(.awake, init.io);
-            const start = playerStartTime orelse return;
-            finishDuration = start.durationTo(now);
-        }
+        if (!isPlayerAtStart) timer.begin(init.io);
+        if (isPlayerAtEnd) timer.stop(init.io);
 
         if (spriteIdleTimer > 0) spriteIdleTimer -= rl.getFrameTime();
 
@@ -206,13 +181,13 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         if (spriteIdleTimer > 0) {
             playerRunning.draw(
-                .init(marginX + playerX, marginY + playerY, 24, 24),
+                .init(marginX + playerX, marginY + playerY, SPRITE_SIZE, SPRITE_SIZE),
                 .zero(),
                 .white,
             );
         } else {
             playerIdle.draw(
-                .init(marginX + playerX, marginY + playerY, 24, 24),
+                .init(marginX + playerX, marginY + playerY, SPRITE_SIZE, SPRITE_SIZE),
                 .zero(),
                 .white,
             );
@@ -221,7 +196,7 @@ pub fn main(init: std.process.Init) anyerror!void {
         if (isPlayerAtEnd) {
             rl.drawRectangle(0, 0, screenWidth, screenHeight, .init(255, 255, 255, 155));
 
-            if (finishDuration) |d| {
+            if (timer.duration) |d| {
                 var buf: [64]u8 = undefined;
                 const timeText = try std.fmt.bufPrintZ(&buf, "Finished in {f}", .{d});
                 rl.drawText(timeText, 400, (screenHeight / 2) - 60, 24, .black);
@@ -232,4 +207,27 @@ pub fn main(init: std.process.Init) anyerror!void {
             rl.drawText("[r]: Refresh [q]: Quit", 20, 20, 24, .black);
         }
     }
+}
+
+const Timer = struct {
+    start: ?std.Io.Timestamp = null,
+    duration: ?std.Io.Duration = null,
+
+    fn begin(self: *Timer, io: std.Io) void {
+        if (self.start == null) self.start = std.Io.Clock.now(.awake, io);
+    }
+    fn stop(self: *Timer, io: std.Io) void {
+        if (self.duration != null) return;
+        const s = self.start orelse return; // skip, no quit
+        self.duration = s.durationTo(std.Io.Clock.now(.awake, io));
+    }
+    fn reset(self: *Timer) void {
+        self.start = null;
+        self.duration = null;
+    }
+};
+
+inline fn playNew(sound: rl.Sound) void {
+    if (rl.isSoundPlaying(sound)) rl.stopSound(sound);
+    rl.playSound(sound);
 }
