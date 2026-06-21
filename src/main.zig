@@ -128,13 +128,6 @@ pub fn main(init: std.process.Init) anyerror!void {
         }
 
         if (rl.isKeyPressed(.q)) break;
-        if (rl.isKeyPressed(.m)) {
-            if (rl.isMusicStreamPlaying(music)) {
-                rl.stopMusicStream(music);
-            } else {
-                rl.playMusicStream(music);
-            }
-        }
         if (rl.isKeyPressed(.r)) {
             playNew(retrySound);
             rl.stopMusicStream(music);
@@ -178,10 +171,8 @@ pub fn main(init: std.process.Init) anyerror!void {
             mazeTexture = new;
         }
 
-        const tex = mazeTexture.texture;
-
-        const width: f32 = @floatFromInt(tex.width);
-        const height: f32 = @floatFromInt(tex.height);
+        const width: f32 = @floatFromInt(mazeTexture.texture.width);
+        const height: f32 = @floatFromInt(mazeTexture.texture.height);
 
         const availW: f32 = @floatFromInt(sw);
         const availH: f32 = @floatFromInt(sh);
@@ -209,12 +200,12 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         rl.clearBackground(.ray_white);
 
-        rl.drawTexturePro(tex, source, dist, .zero(), 0, .white);
+        rl.drawTexturePro(mazeTexture.texture, source, dist, .zero(), 0, .ray_white);
 
         if (playerRunTime > 0) {
-            playerRunning.draw(playerRec, .zero(), .white);
+            playerRunning.draw(playerRec, .zero(), .ray_white);
         } else {
-            playerIdle.draw(playerRec, .zero(), .white);
+            playerIdle.draw(playerRec, .zero(), .ray_white);
         }
 
         if (isPlayerAtEnd) {

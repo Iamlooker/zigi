@@ -85,8 +85,8 @@ pub const Maze = struct {
             const x: i32 = @intCast(index % self.width);
             const y: i32 = @intCast(index / self.width);
 
-            const px: i32 = x * cSize;
-            const py: i32 = y * cSize;
+            const px = x * cSize;
+            const py = y * cSize;
 
             // `+ WALL_SIZE` so the right corner is closed
             if (Direction.north.isWall(cell)) rl.drawRectangle(px, py, cSize + wSize, wSize, .black);
