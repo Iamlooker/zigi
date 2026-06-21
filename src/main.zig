@@ -2,8 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const rl = @import("raylib");
 
-const a = @import("sprite.zig");
-const Sprite = a.Sprite;
+const Sprite = @import("sprite.zig").Sprite;
 
 const m = @import("maze.zig");
 const Maze = m.Maze;
@@ -13,13 +12,15 @@ const p = @import("player.zig");
 const Player = p.Player;
 const Character = p.Character;
 
+const Timer = @import("timer.zig").Timer;
+
 const config = @import("config.zig");
 const CELL_SIZE = config.CELL_SIZE;
+const WALL_SIZE = config.WALL_SIZE;
 const SPRITE_SIZE = config.SPRITE_SIZE;
+const PADDING = config.PADDING;
 
 pub fn main(init: std.process.Init) anyerror!void {
-    const allocator = init.gpa;
-
     const seed: u64 = if (builtin.mode == .Debug) blk: {
         break :blk 194;
     } else blk: {
@@ -30,29 +31,30 @@ pub fn main(init: std.process.Init) anyerror!void {
     var prng: std.Random.DefaultPrng = .init(seed);
     const rand = prng.random();
 
+    const allocator = init.gpa;
+
     var maze = try Maze.random(allocator, rand);
     defer maze.deinit(allocator);
 
     var sw: i32 = 1000;
     var sh: i32 = 1000;
 
-    var marginX = mX(sw, maze);
-    var marginY = mY(sh, maze);
-
     rl.setConfigFlags(.{ .window_resizable = true });
     rl.initWindow(sw, sh, "zigi");
     defer rl.closeWindow();
 
-    var mazeTexture = try maze.bake();
-    defer mazeTexture.unload();
-
     rl.initAudioDevice();
     defer rl.closeAudioDevice();
 
+    var cellSize: i32 = CELL_SIZE;
+    var wallSize: i32 = WALL_SIZE;
+    var mazeTexture = try maze.bake(cellSize, wallSize);
+    defer mazeTexture.unload();
+
     var music = try rl.loadMusicStream("resources/sfx/music.mp3");
     defer music.unload();
-    rl.setMusicVolume(music, 0.1);
     music.looping = true;
+    rl.setMusicVolume(music, 0.1);
     rl.playMusicStream(music);
 
     const retrySound = try rl.loadSound("resources/sfx/retry.wav");
@@ -69,7 +71,6 @@ pub fn main(init: std.process.Init) anyerror!void {
     const SPRITE_FPS = 15;
 
     const IDLE_FRAMES = 4;
-
     var playerIdle: Sprite = try .init(allocator, player.texture, SPRITE_FPS, 0, IDLE_FRAMES, SPRITE_SIZE);
     defer playerIdle.deinit(allocator);
 
@@ -77,33 +78,24 @@ pub fn main(init: std.process.Init) anyerror!void {
     var playerRunning: Sprite = try .init(allocator, player.texture, SPRITE_FPS, IDLE_FRAMES, RUNNING_FRAMES, SPRITE_SIZE);
     defer playerRunning.deinit(allocator);
 
-    const PLAYER_RUN_TILL = 0.2;
-    var spriteIdleTimer: f32 = 0;
+    const PLAYER_RUN_TILL = 0.25;
+    var playerRunTime: f32 = 0;
 
-    var timer: Timer = .{};
+    var timer: Timer = .{ .io = init.io };
 
     rl.setTargetFPS(240);
 
     while (!rl.windowShouldClose()) {
+        // Update data which raylib needs
         rl.updateMusicStream(music);
 
-        const nsw = rl.getScreenWidth();
-        const nsh = rl.getScreenHeight();
-        if (sw != nsw or sh != nsh) {
-            sw = nsw;
-            sh = nsh;
+        // Update data which animation needs
+        if (playerRunTime > 0) playerRunTime -= rl.getFrameTime();
 
-            marginX = mX(sw, maze);
-            marginY = mY(sh, maze);
-        }
-
-        const isPlayerAtStart = player.position == maze.start;
-        const isPlayerAtEnd = player.position == maze.end;
-
-        // Movement before state calculation
-        if (!isPlayerAtEnd) {
+        // Take input
+        if (player.position != maze.end) {
             if (rl.isKeyPressed(.w)) {
-                spriteIdleTimer = PLAYER_RUN_TILL;
+                playerRunTime = PLAYER_RUN_TILL;
                 const position = maze.cells[player.position];
                 if (Direction.north.isPath(position)) {
                     player.sub(maze.width);
@@ -111,7 +103,7 @@ pub fn main(init: std.process.Init) anyerror!void {
                 }
             }
             if (rl.isKeyPressed(.s)) {
-                spriteIdleTimer = PLAYER_RUN_TILL;
+                playerRunTime = PLAYER_RUN_TILL;
                 const position = maze.cells[player.position];
                 if (Direction.south.isPath(position)) {
                     player.add(maze.width);
@@ -119,7 +111,7 @@ pub fn main(init: std.process.Init) anyerror!void {
                 }
             }
             if (rl.isKeyPressed(.d)) {
-                spriteIdleTimer = PLAYER_RUN_TILL;
+                playerRunTime = PLAYER_RUN_TILL;
                 const position = maze.cells[player.position];
                 if (Direction.east.isPath(position)) {
                     player.add(1);
@@ -127,7 +119,7 @@ pub fn main(init: std.process.Init) anyerror!void {
                 }
             }
             if (rl.isKeyPressed(.a)) {
-                spriteIdleTimer = PLAYER_RUN_TILL;
+                playerRunTime = PLAYER_RUN_TILL;
                 const position = maze.cells[player.position];
                 if (Direction.west.isPath(position)) {
                     player.sub(1);
@@ -153,12 +145,12 @@ pub fn main(init: std.process.Init) anyerror!void {
             maze.deinit(allocator);
             maze = newMaze;
 
-            const newMazeTexture = try maze.bake();
+            cellSize = fitCell(sw, sh, maze.width, maze.height);
+            wallSize = @max(1, @divFloor(cellSize, 24));
+
+            const newMazeTexture = try maze.bake(cellSize, wallSize);
             mazeTexture.unload();
             mazeTexture = newMazeTexture;
-
-            marginX = mX(sw, maze);
-            marginY = mY(sh, maze);
 
             const newPlayer = try Player.init(maze.start, Character.random(rand));
             player.deinit();
@@ -169,39 +161,63 @@ pub fn main(init: std.process.Init) anyerror!void {
             timer.reset();
         }
 
-        const playerX: f32 = @floatFromInt(player.x(maze.width) * CELL_SIZE);
-        const playerY: f32 = @floatFromInt(player.y(maze.width) * CELL_SIZE);
+        const isPlayerAtStart = player.position == maze.start;
+        const isPlayerAtEnd = player.position == maze.end;
 
-        if (!isPlayerAtStart) timer.begin(init.io);
-        if (isPlayerAtEnd) timer.stop(init.io);
+        if (isPlayerAtStart and timer.start != null) timer.reset();
+        if (!isPlayerAtStart and timer.start == null) timer.begin();
+        if (isPlayerAtEnd) timer.stop();
 
-        if (spriteIdleTimer > 0) spriteIdleTimer -= rl.getFrameTime();
+        // Calculations happen after input is done, so the latest stuff can be shown in current frame
+        if (rl.isWindowResized()) {
+            sw = rl.getScreenWidth();
+            sh = rl.getScreenHeight();
 
+            cellSize = fitCell(sw, sh, maze.width, maze.height);
+            wallSize = @max(1, @divFloor(cellSize, 24));
+
+            const new = try maze.bake(cellSize, wallSize);
+            mazeTexture.unload();
+            mazeTexture = new;
+        }
+
+        const tex = mazeTexture.texture;
+
+        const width: f32 = @floatFromInt(tex.width);
+        const height: f32 = @floatFromInt(tex.height);
+
+        const availW: f32 = @floatFromInt(sw);
+        const availH: f32 = @floatFromInt(sh);
+
+        // We round to fix the subpixel fringing
+        const offX = @round((availW - width) / 2);
+        const offY = @round((availH - height) / 2);
+
+        const source: rl.Rectangle = .init(0, 0, width, -height);
+        const dist: rl.Rectangle = .init(offX, offY, width, height);
+
+        const playerX: f32 = @floatFromInt(@as(i32, @intCast(player.x(maze.width))) * cellSize);
+        const playerY: f32 = @floatFromInt(@as(i32, @intCast(player.y(maze.width))) * cellSize);
+
+        const playerRec: rl.Rectangle = .init(
+            offX + playerX,
+            offY + playerY,
+            @floatFromInt(cellSize),
+            @floatFromInt(cellSize),
+        );
+
+        // Final draw
         rl.beginDrawing();
         defer rl.endDrawing();
 
-        rl.clearBackground(.light_gray);
+        rl.clearBackground(.ray_white);
 
-        const tex = mazeTexture.texture;
-        rl.drawTextureRec(
-            tex,
-            .init(0, 0, @floatFromInt(tex.width), @floatFromInt(-tex.height)),
-            .init(marginX, marginY),
-            .white,
-        );
+        rl.drawTexturePro(tex, source, dist, .zero(), 0, .white);
 
-        if (spriteIdleTimer > 0) {
-            playerRunning.draw(
-                .init(marginX + playerX, marginY + playerY, SPRITE_SIZE, SPRITE_SIZE),
-                .zero(),
-                .white,
-            );
+        if (playerRunTime > 0) {
+            playerRunning.draw(playerRec, .zero(), .white);
         } else {
-            playerIdle.draw(
-                .init(marginX + playerX, marginY + playerY, SPRITE_SIZE, SPRITE_SIZE),
-                .zero(),
-                .white,
-            );
+            playerIdle.draw(playerRec, .zero(), .white);
         }
 
         if (isPlayerAtEnd) {
@@ -220,35 +236,17 @@ pub fn main(init: std.process.Init) anyerror!void {
     }
 }
 
-const Timer = struct {
-    start: ?std.Io.Timestamp = null,
-    duration: ?std.Io.Duration = null,
-
-    fn begin(self: *Timer, io: std.Io) void {
-        if (self.start == null) self.start = std.Io.Clock.now(.awake, io);
-    }
-    fn stop(self: *Timer, io: std.Io) void {
-        if (self.duration != null) return;
-        const s = self.start orelse return; // skip, no quit
-        self.duration = s.durationTo(std.Io.Clock.now(.awake, io));
-    }
-    fn reset(self: *Timer) void {
-        self.start = null;
-        self.duration = null;
-    }
-};
-
 inline fn playNew(sound: rl.Sound) void {
     if (rl.isSoundPlaying(sound)) rl.stopSound(sound);
     rl.playSound(sound);
 }
 
-inline fn mY(screen: i32, maze: Maze) f32 {
-    const mh: i32 = @intCast(maze.width * CELL_SIZE);
-    return @floatFromInt(@divTrunc(screen - mh, 2));
-}
-
-inline fn mX(screen: i32, maze: Maze) f32 {
-    const mw: i32 = @intCast(maze.height * CELL_SIZE);
-    return @floatFromInt(@divTrunc(screen - mw, 2));
+inline fn fitCell(sw: i32, sh: i32, mazeW: u16, mazeH: u16) i32 {
+    const availW: f32 = @floatFromInt(sw);
+    const availH: f32 = @floatFromInt(sh);
+    const cell = @min(
+        availW * (1 - 2 * PADDING) / @as(f32, @floatFromInt(mazeW)),
+        availH * (1 - 2 * PADDING) / @as(f32, @floatFromInt(mazeH)),
+    );
+    return @intFromFloat(@max(cell, 4)); // floor, min 4px
 }

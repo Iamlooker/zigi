@@ -1,10 +1,6 @@
 const std = @import("std");
 const rl = @import("raylib");
 
-const config = @import("config.zig");
-const CELL_SIZE = config.CELL_SIZE;
-const WALL_SIZE = config.WALL_SIZE;
-
 /// [start] is starting cell index
 /// [end] is winning cell index
 /// [width] is in number of cells
@@ -58,9 +54,9 @@ pub const Maze = struct {
         return init(allocator, rand, start, end, width, height);
     }
 
-    pub fn bake(self: Self) !rl.RenderTexture2D {
-        const w: i32 = @as(i32, self.width) * CELL_SIZE + WALL_SIZE;
-        const h: i32 = @as(i32, self.height) * CELL_SIZE + WALL_SIZE;
+    pub fn bake(self: Self, cSize: i32, wSize: i32) !rl.RenderTexture2D {
+        const w: i32 = @as(i32, self.width) * cSize + wSize;
+        const h: i32 = @as(i32, self.height) * cSize + wSize;
 
         const target: rl.RenderTexture2D = try .init(w, h);
 
@@ -68,60 +64,39 @@ pub const Maze = struct {
         defer target.end();
 
         rl.clearBackground(.blank);
-        self.draw(0, 0);
+
+        rl.drawRectangle(
+            @as(i32, @intCast(self.start % self.width)) * cSize,
+            @as(i32, @intCast(self.start / self.width)) * cSize,
+            cSize,
+            cSize,
+            .lime,
+        );
+
+        rl.drawRectangle(
+            @as(i32, @intCast(self.end % self.width)) * cSize,
+            @as(i32, @intCast(self.end / self.width)) * cSize,
+            cSize,
+            cSize,
+            .maroon,
+        );
+
+        for (self.cells, 0..) |cell, index| {
+            const x: i32 = @intCast(index % self.width);
+            const y: i32 = @intCast(index / self.width);
+
+            const px: i32 = x * cSize;
+            const py: i32 = y * cSize;
+
+            // `+ WALL_SIZE` so the right corner is closed
+            if (Direction.north.isWall(cell)) rl.drawRectangle(px, py, cSize + wSize, wSize, .black);
+            if (Direction.south.isWall(cell)) rl.drawRectangle(px, py + cSize, cSize + wSize, wSize, .black);
+
+            if (Direction.east.isWall(cell)) rl.drawRectangle(px + cSize, py, wSize, cSize, .black);
+            if (Direction.west.isWall(cell)) rl.drawRectangle(px, py, wSize, cSize, .black);
+        }
 
         return target;
-    }
-
-    pub fn draw(
-        self: Self,
-        posX: i32,
-        posY: i32,
-    ) void {
-        for (0..self.height) |y| {
-            for (0..self.width) |x| {
-                const index = y * self.width + x;
-
-                const cellX: i32 = @intCast(x);
-                const cellY: i32 = @intCast(y);
-
-                const px: i32 = posX + (cellX * CELL_SIZE);
-                const py: i32 = posY + (cellY * CELL_SIZE);
-
-                const cell = self.cells[index];
-
-                // `+ WALL_SIZE` so the right corner is closed
-                if (Direction.north.isWall(cell)) {
-                    rl.drawRectangle(px, py, CELL_SIZE + WALL_SIZE, WALL_SIZE, .black);
-                }
-                if (Direction.south.isWall(cell)) {
-                    rl.drawRectangle(px, py + CELL_SIZE, CELL_SIZE + WALL_SIZE, WALL_SIZE, .black);
-                }
-
-                if (Direction.east.isWall(cell)) {
-                    rl.drawRectangle(px + CELL_SIZE, py, WALL_SIZE, CELL_SIZE, .black);
-                }
-                if (Direction.west.isWall(cell)) {
-                    rl.drawRectangle(px, py, WALL_SIZE, CELL_SIZE, .black);
-                }
-
-                if (index == self.start) rl.drawRectangle(
-                    px + WALL_SIZE,
-                    py + WALL_SIZE,
-                    CELL_SIZE - WALL_SIZE,
-                    CELL_SIZE - WALL_SIZE,
-                    .lime,
-                );
-
-                if (index == self.end) rl.drawRectangle(
-                    px + WALL_SIZE,
-                    py + WALL_SIZE,
-                    CELL_SIZE - WALL_SIZE,
-                    CELL_SIZE - WALL_SIZE,
-                    .maroon,
-                );
-            }
-        }
     }
 };
 
