@@ -47,8 +47,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     defer rl.closeAudioDevice();
 
     var cellSize: i32 = CELL_SIZE;
-    var wallSize: i32 = WALL_SIZE;
-    var mazeTexture = try maze.bake(cellSize, wallSize);
+    var mazeTexture = try maze.bake(cellSize, WALL_SIZE);
     defer mazeTexture.unload();
 
     var music = try rl.loadMusicStream("resources/sfx/music.mp3");
@@ -146,9 +145,8 @@ pub fn main(init: std.process.Init) anyerror!void {
             maze = newMaze;
 
             cellSize = fitCell(sw, sh, maze.width, maze.height);
-            wallSize = @max(1, @divFloor(cellSize, 24));
 
-            const newMazeTexture = try maze.bake(cellSize, wallSize);
+            const newMazeTexture = try maze.bake(cellSize, WALL_SIZE);
             mazeTexture.unload();
             mazeTexture = newMazeTexture;
 
@@ -174,9 +172,8 @@ pub fn main(init: std.process.Init) anyerror!void {
             sh = rl.getScreenHeight();
 
             cellSize = fitCell(sw, sh, maze.width, maze.height);
-            wallSize = @max(1, @divFloor(cellSize, 24));
 
-            const new = try maze.bake(cellSize, wallSize);
+            const new = try maze.bake(cellSize, WALL_SIZE);
             mazeTexture.unload();
             mazeTexture = new;
         }
