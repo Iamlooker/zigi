@@ -40,3 +40,7 @@ Sound effects and music from [Pixabay](https://pixabay.com/), licensed under the
 - [`move.wav`](resources/sfx/move.wav) — [Retro jump sound 04](https://pixabay.com/sound-effects/retro-jump-sound-04-474783/)
 - [`ui.wav`](resources/sfx/ui.wav) (unused) — [UI click retro](https://pixabay.com/sound-effects/film-special-effects-ui-click-retro-514601/)
 - [`jump.wav`](resources/sfx/jump.wav) (unused) — [Retro jump 3](https://pixabay.com/sound-effects/film-special-effects-retro-jump-3-236683/)
+
+## License
+
+Source code is licensed under [MIT](LICENSE). Assets under `resources/` are third-party — see [Credits](#credits) for their licenses.
