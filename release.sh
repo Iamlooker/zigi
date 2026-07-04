@@ -28,11 +28,18 @@ if [ "$GH_HEAD" != "$(git rev-parse HEAD)" ]; then
 fi
 
 zig build -Doptimize=ReleaseSmall
-ASSET="zig-out/zigi-$TAG-linux-x86_64"
-cp zig-out/bin/zigi "$ASSET"
+LINUX_ASSET="zig-out/zigi-$TAG-x86_64-linux.tar.gz"
+tar czf "$LINUX_ASSET" -C zig-out/bin zigi -C ../.. resources
 
-fj release create "$TAG" --create-tag --attach "$ASSET" --body "$BODY"
-gh release create "$TAG" "$ASSET" --repo "$GH_REPO" --title "$TAG" --notes "$BODY"
+zig build -Doptimize=ReleaseSmall -Dtarget=x86_64-windows-gnu
+WINDOWS_ASSET="zig-out/zigi-$TAG-x86_64-windows.zip"
+zip -j "$WINDOWS_ASSET" zig-out/bin/zigi.exe
+zip -r "$WINDOWS_ASSET" resources
+
+fj release create "$TAG" --create-tag \
+    --attach "$LINUX_ASSET" --attach "$WINDOWS_ASSET" --body "$BODY"
+gh release create "$TAG" "$LINUX_ASSET" "$WINDOWS_ASSET" \
+    --repo "$GH_REPO" --title "$TAG" --notes "$BODY"
 
 git fetch --tags origin
 echo "released $TAG on Codeberg and GitHub"
