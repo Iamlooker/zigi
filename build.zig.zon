@@ -1,6 +1,6 @@
 .{
     .name = .zigi,
-    .version = "0.0.1",
+    .version = "0.0.2",
     .fingerprint = 0x7c124bd7e6853c39,
     .minimum_zig_version = "0.16.0",
     .paths = .{
