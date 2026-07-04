@@ -14,15 +14,10 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-list -1 HEAD -- CHANGELOG.md)" ]; the
     git log -1 --format='      %h %s' -- CHANGELOG.md >&2
 fi
 
-if command -v parse-changelog >/dev/null 2>&1; then
-    BODY="$(parse-changelog CHANGELOG.md "${TAG#v}")"
-else
-    echo "note: parse-changelog not found, using first CHANGELOG.md block" >&2
-    BODY="$(awk '/^## /{ if (found) exit; found = 1; next } found' CHANGELOG.md)"
-    if [ -z "$(printf '%s' "$BODY" | tr -d '[:space:]')" ]; then
-        echo "error: could not extract a release block from CHANGELOG.md" >&2
-        exit 1
-    fi
+BODY="$(awk '/^## /{ if (found) exit; found = 1; next } found' CHANGELOG.md)"
+if [ -z "$(printf '%s' "$BODY" | tr -d '[:space:]')" ]; then
+    echo "error: could not extract a release block from CHANGELOG.md" >&2
+    exit 1
 fi
 
 # gh creates its tag from the GitHub default branch head; abort if the mirror lags
