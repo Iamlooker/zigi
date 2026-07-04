@@ -8,6 +8,20 @@ A random maze is generated on each run. Guide your dino from the start to the en
 
 ## Installation
 
+### Prebuilt binaries
+
+Download the archive for your platform from the [Codeberg](https://codeberg.org/Iamlooker/zigi/releases) or [GitHub](https://github.com/Iamlooker/zigi/releases) page, extract it, and run the game from the extracted directory
+
+**Linux (x86_64):**
+
+```bash
+mkdir zigi && tar xzf zigi-<version>-x86_64-linux.tar.gz -C zigi
+cd zigi
+./zigi
+```
+
+**Windows (x86_64):** extract the `.zip` and run `zigi.exe`.
+
 ### Manual
 
 Requires Zig **0.16.0+**.
